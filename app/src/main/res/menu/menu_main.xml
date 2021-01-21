@@ -4,8 +4,21 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools">
     <item
-        android:id="@+id/file"
-        android:title="File"
-        app:showAsAction="never">
+        android:id="@+id/open_menu"
+        android:title="Open"
+        android:orderInCategory="1"
+        app:showAsAction="always">
+    </item>
+    <item
+        android:id="@+id/play_menu"
+        android:title="Play"
+        android:orderInCategory="2"
+        app:showAsAction="always">
+    </item>
+    <item
+        android:id="@+id/stop_menu"
+        android:title="Stop"
+        android:orderInCategory="3"
+        app:showAsAction="always">
     </item>
 </menu>
