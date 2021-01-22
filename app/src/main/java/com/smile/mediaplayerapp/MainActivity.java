@@ -13,14 +13,16 @@ import android.os.Bundle;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 
 import android.support.v4.media.MediaBrowserCompat;
+import android.view.View;
+import android.widget.Button;
 
-import com.example.mediaplayerapp.R;
 import com.smile.mediaplayerapp.utilities.ContentUriAccessUtil;
 
 import java.util.ArrayList;
@@ -30,10 +32,14 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private static final int SELECT_FILES = 1;
 
+    private Button mPlayPauseToggleButton;
+
     private MediaBrowserCompat mMediaBrowser;
-    MediaControllerCompat mMediaController;
-    MediaControllerCallback mMediaControllerCallback;
-    MediaMetadataCompat mMetadata;
+    private MediaControllerCompat mMediaController;
+    private MediaControllerCallback mMediaControllerCallback;
+    private MediaMetadataCompat mMetadata;
+
+    private int mCurrentState;
 
     private final MediaBrowserCompat.ConnectionCallback mMediaBrowserConnectionCallbacks =
             new MediaBrowserCompat.ConnectionCallback() {
@@ -61,6 +67,9 @@ public class MainActivity extends AppCompatActivity {
                         // Display the initial state
                         mMetadata = mMediaController.getMetadata();
                         Log.d(TAG, "mMetadata = " + mMetadata);
+
+                        // play mp3 file in the raw of resource
+                        mMediaController.getTransportControls().playFromMediaId(String.valueOf(R.raw.warner_tautz_off_broadway), null);
 
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -90,8 +99,29 @@ public class MainActivity extends AppCompatActivity {
                 this,
                 new ComponentName(this, MediaPlaybackService.class), // Bind browser service
                 mMediaBrowserConnectionCallbacks,  // Set the connection callback
-        null
+                getIntent().getExtras()
         );
+
+        mCurrentState = PlaybackStateCompat.STATE_NONE;
+
+        mPlayPauseToggleButton = findViewById(R.id.button);
+        mPlayPauseToggleButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                try {
+                    mCurrentState = mMediaController.getPlaybackState().getState();
+                    if (mCurrentState == PlaybackStateCompat.STATE_PAUSED) {
+                        mMediaController.getTransportControls().play();
+                    } else {
+                        if (mCurrentState == PlaybackStateCompat.STATE_PLAYING) {
+                            mMediaController.getTransportControls().pause();
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     @Override
