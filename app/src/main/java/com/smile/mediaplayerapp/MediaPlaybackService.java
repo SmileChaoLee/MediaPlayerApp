@@ -44,6 +44,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
     private MediaPlayer.OnPreparedListener preparedListener = new MediaPlayer.OnPreparedListener() {
         @Override
         public void onPrepared(MediaPlayer mediaPlayer) {
+            Log.d(TAG, "onPrepared() is called.");
             mMediaPlayer.start();
             PlaybackStateCompat playbackState = PlaybackStateUtil.getMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
             mMediaSession.setPlaybackState(playbackState);
@@ -52,6 +53,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
     private MediaPlayer.OnCompletionListener completionListener = new MediaPlayer.OnCompletionListener() {
         @Override
         public void onCompletion(MediaPlayer mediaPlayer) {
+            Log.d(TAG, "onCompletion() is called.");
             PlaybackStateCompat playbackState = PlaybackStateUtil.getMediaPlaybackState(PlaybackStateCompat.STATE_NONE);
             mMediaSession.setPlaybackState(playbackState);
             mMediaPlayer.reset();
@@ -68,19 +70,21 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
             }
         }
     };
-    //
+
     // check for if this is really needed for a MediaBrowserServiceCompat
+    /*
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand() is called.");
         MediaButtonReceiver.handleIntent(mMediaSession, intent);
         return super.onStartCommand(intent, flags, startId);
     }
-    //
+    */
 
     @Override
     public void onCreate() {
         super.onCreate();
+        Log.d(TAG, "onCreate() is called.");
 
         initMediaPlayer();
         initMediaSession();
@@ -98,6 +102,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
         unregisterReceiver(mNoisyReceiver);
 
         if (mMediaPlayer != null) {
+            mMediaPlayer.stop();
+            mMediaPlayer.reset();
             mMediaPlayer.release();
             mMediaPlayer = null;
         }
@@ -124,6 +130,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
 
     @Override
     public void onAudioFocusChange(int focusChange) {
+        Log.d(TAG, "onAudioFocusChange() is called.");
         switch( focusChange ) {
             case AudioManager.AUDIOFOCUS_LOSS: {
                 if( mMediaPlayer.isPlaying() ) {
@@ -154,8 +161,9 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
     }
 
     private void initMediaSession() {
+        Log.d(TAG, "initMediaSession() is called.");
 
-        ComponentName mMediaButtonReceiver = new ComponentName(getApplicationContext(), MyMediaButtonReceiver.class);
+        ComponentName mMediaButtonReceiver = new ComponentName(getApplicationContext(), MediaButtonReceiver.class);
         // Create a MediaSessionCompat
         mMediaSession = new MediaSessionCompat(this, LOG_TAG, mMediaButtonReceiver, null);
         // or if no BroadcastReceiver for media button and Notification
@@ -171,9 +179,11 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
         PlaybackStateCompat playbackState = PlaybackStateUtil.getMediaPlaybackState(PlaybackStateCompat.STATE_NONE);
         mMediaSession.setPlaybackState(playbackState);
 
+        mMediaSession.setActive(true);
+
         // media button receiving
         Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
-        mediaButtonIntent.setClass(this, MyMediaButtonReceiver.class);
+        mediaButtonIntent.setClass(this, MediaButtonReceiver.class);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, mediaButtonIntent, 0);
         mMediaSession.setMediaButtonReceiver(pendingIntent);
         //
@@ -183,21 +193,24 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
     }
 
     private void initNoisyReceiver() {
+        Log.d(TAG, "initNoisyReceiver() is called.");
         //Handles headphones coming unplugged. cannot be done through a manifest receiver
         IntentFilter filter = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
         registerReceiver( mNoisyReceiver, filter);
     }
 
     public void initMediaPlayer() {
+        Log.d(TAG, "initMediaPlayer() is called.");
         mMediaPlayer = new MediaPlayer();
         mMediaPlayer.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
         mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
         mMediaPlayer.setVolume(1.0f, 1.0f);
-        mMediaPlayer.setOnPreparedListener(preparedListener);
+        // mMediaPlayer.setOnPreparedListener(preparedListener);
         mMediaPlayer.setOnCompletionListener(completionListener);
     }
 
     public void initMediaSessionMetadata() {
+        Log.d(TAG, "initMediaSessionMetadata() is called.");
         MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
         //Notification icon in card
         metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher));
@@ -214,7 +227,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
     }
 
     public void showPlayingNotification() {
-        NotificationCompat.Builder builder = MediaStyleHelper.from(MediaPlaybackService.this, mMediaSession);
+        Log.d(TAG, "showPlayingNotification() is called.");
+        NotificationCompat.Builder builder = MediaStyleHelper.from(this, mMediaSession);
         if( builder == null ) {
             return;
         }
@@ -222,12 +236,12 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
         builder.addAction(new NotificationCompat.Action(android.R.drawable.ic_media_pause, "Pause", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
         builder.setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
                 .setShowActionsInCompactView(0).setMediaSession(mMediaSession.getSessionToken()));
-        builder.setSmallIcon(R.mipmap.ic_launcher);
-        builder.setChannelId(MediaStyleHelper.channelId);
-        NotificationManagerCompat.from(MediaPlaybackService.this).notify(1, builder.build());
+        builder.setSmallIcon(R.mipmap.notification_icon);
+        NotificationManagerCompat.from(this).notify(1, builder.build());
     }
 
     public void showPausedNotification() {
+        Log.d(TAG, "showPausedNotification() is called.");
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mMediaSession);
         if( builder == null ) {
             return;
@@ -235,12 +249,12 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
 
         builder.addAction(new androidx.core.app.NotificationCompat.Action(android.R.drawable.ic_media_play, "Play", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
         builder.setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(0).setMediaSession(mMediaSession.getSessionToken()));
-        builder.setSmallIcon(R.mipmap.ic_launcher);
-        builder.setChannelId(MediaStyleHelper.channelId);
+        builder.setSmallIcon(R.mipmap.notification_icon);
         NotificationManagerCompat.from(this).notify(1, builder.build());
     }
 
     public void showStoppedNotification() {
+        Log.d(TAG, "showStoppedNotification() is called.");
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mMediaSession);
         if( builder == null ) {
             return;
@@ -248,12 +262,12 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
 
         builder.addAction(new androidx.core.app.NotificationCompat.Action(android.R.drawable.ic_media_play, "Play", MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE)));
         builder.setStyle(new androidx.media.app.NotificationCompat.MediaStyle().setShowActionsInCompactView(0).setMediaSession(mMediaSession.getSessionToken()));
-        builder.setSmallIcon(R.mipmap.ic_launcher);
-        builder.setChannelId(MediaStyleHelper.channelId);
+        builder.setSmallIcon(R.mipmap.notification_icon);
         NotificationManagerCompat.from(this).notify(1, builder.build());
     }
 
     public boolean successfullyRetrievedAudioFocus() {
+        Log.d(TAG, "successfullyRetrievedAudioFocus() is called.");
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
         int result = audioManager.requestAudioFocus(this,

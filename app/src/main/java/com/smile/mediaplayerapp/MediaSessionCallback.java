@@ -1,6 +1,5 @@
 package com.smile.mediaplayerapp;
 
-import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -45,37 +44,6 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
     public synchronized void onPrepareFromMediaId(String mediaId, Bundle extras) {
         super.onPrepareFromMediaId(mediaId, extras);
         Log.d(TAG, "onPrepareFromMediaId() is called.");
-    }
-
-    @Override
-    public synchronized void onPrepareFromUri(Uri uri, Bundle extras) {
-        super.onPrepareFromUri(uri, extras);
-        Log.d(TAG, "onPrepareFromUri() is called.");
-    }
-
-    @Override
-    public synchronized void onPlay() {
-        super.onPlay();
-        Log.d(TAG, "onPlay() is called.");
-        if( !mMediaPlaybackService.successfullyRetrievedAudioFocus() ) {
-            return;
-        }
-
-        mMediaPlaybackService.showPlayingNotification();
-        // mMediaPlayer.start();
-
-        PlaybackStateCompat playbackState = mMediaSession.getController().getPlaybackState();
-        if(playbackState.getState() != PlaybackStateCompat.STATE_PLAYING){
-            mMediaPlayer.start();
-            playbackState = PlaybackStateUtil.getMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
-            mMediaSession.setPlaybackState(playbackState);
-        }
-    }
-
-    @Override
-    public synchronized void onPlayFromMediaId(String mediaId, Bundle extras) {
-        super.onPlayFromMediaId(mediaId, extras);
-        Log.d(TAG, "onPlayFromMediaId() is called.");
         try {
             AssetFileDescriptor afd = mMediaPlaybackService.getResources().openRawResourceFd(Integer.valueOf(mediaId));
             if (afd == null) {
@@ -83,9 +51,9 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
             }
             Log.d(TAG, "onPlayFromMediaId()--> afd not null.");
 
+            mMediaPlayer.reset();
             try {
                 mMediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-
             } catch (IllegalStateException e) {
                 Log.d(TAG, "onPlayFromMediaId()--> mMediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength()) failed.");
                 mMediaPlayer.release();
@@ -96,7 +64,8 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
             afd.close();
             mMediaPlaybackService.initMediaSessionMetadata();
 
-        } catch (IOException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
             return;
         }
 
@@ -108,9 +77,9 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
     }
 
     @Override
-    public synchronized void onPlayFromUri(Uri uri, Bundle extras) {
-        super.onPlayFromUri(uri, extras);
-        Log.d(TAG, "onPlayFromUri() is called.");
+    public synchronized void onPrepareFromUri(Uri uri, Bundle extras) {
+        super.onPrepareFromUri(uri, extras);
+        Log.d(TAG, "onPrepareFromUri() is called.");
         PlaybackStateCompat playbackState = mMediaSession.getController().getPlaybackState();
         try {
             switch (playbackState.getState()){
@@ -135,6 +104,35 @@ public class MediaSessionCallback extends MediaSessionCompat.Callback {
         }catch (IOException e){
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public synchronized void onPlay() {
+        super.onPlay();
+        Log.d(TAG, "onPlay() is called.");
+        if( !mMediaPlaybackService.successfullyRetrievedAudioFocus() ) {
+            return;
+        }
+
+        PlaybackStateCompat playbackState = mMediaSession.getController().getPlaybackState();
+        if(playbackState.getState() != PlaybackStateCompat.STATE_PLAYING){
+            mMediaPlayer.start();
+            playbackState = PlaybackStateUtil.getMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
+            mMediaSession.setPlaybackState(playbackState);
+            mMediaPlaybackService.showPlayingNotification();
+        }
+    }
+
+    @Override
+    public synchronized void onPlayFromMediaId(String mediaId, Bundle extras) {
+        super.onPlayFromMediaId(mediaId, extras);
+        Log.d(TAG, "onPlayFromMediaId() is called.");
+    }
+
+    @Override
+    public synchronized void onPlayFromUri(Uri uri, Bundle extras) {
+        super.onPlayFromUri(uri, extras);
+        Log.d(TAG, "onPlayFromUri() is called.");
     }
 
     @Override
