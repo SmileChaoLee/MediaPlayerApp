@@ -6,9 +6,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.AssetFileDescriptor;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.media.session.PlaybackState;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.support.v4.media.MediaBrowserCompat;
@@ -26,6 +29,7 @@ import androidx.media.session.MediaButtonReceiver;
 
 import com.smile.mediaplayerapp.utilities.PlaybackStateUtil;
 
+import java.io.IOException;
 import java.util.List;
 
 public class MediaPlaybackService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
@@ -36,7 +40,6 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
     private static final String MY_EMPTY_MEDIA_ROOT_ID = "empty_root_id";
 
     private MediaSessionCompat mMediaSession;
-    private PlaybackStateCompat.Builder mPlaybackStateBuilder;
     private MediaPlayer mMediaPlayer;
 
     public static final String MEDIA_ID_ROOT = "MediaBrowserServiceCompat";
@@ -170,7 +173,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
         // mMediaSession = new MediaSessionCompat(this, LOG_TAG);
 
         // MySessionCallback() has methods that handle callbacks from a media controller
-        mMediaSession.setCallback(new MediaSessionCallback(this, mMediaSession, mMediaPlayer));
+        mMediaSession.setCallback(new MediaSessionCallback(this));
 
         // Enable callbacks from MediaButtons and TransportControls
         mMediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
@@ -209,6 +212,113 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
         mMediaPlayer.setOnCompletionListener(completionListener);
     }
 
+    public void prepareFromMediaId(String mediaId, Bundle extras) {
+        Log.d(TAG, "prepareFromMediaId() is called.");
+        try {
+            AssetFileDescriptor afd = getResources().openRawResourceFd(Integer.valueOf(mediaId));
+            if (afd == null) {
+                return;
+            }
+            Log.d(TAG, "prepareFromMediaId()--> afd not null.");
+
+            mMediaPlayer.reset();
+            try {
+                mMediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+            } catch (IllegalStateException e) {
+                Log.d(TAG, "prepareFromMediaId()--> mMediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength()) failed.");
+                mMediaPlayer.release();
+                initMediaPlayer();
+                mMediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+            }
+
+            afd.close();
+            initMediaSessionMetadata();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+
+        try {
+            mMediaPlayer.prepare();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void prepareMediaFromUri(Uri uri, Bundle extras) {
+        Log.d(TAG, "prepareMediaFromUri() is called.");
+        PlaybackStateCompat playbackState = mMediaSession.getController().getPlaybackState();
+        try {
+            switch (playbackState.getState()){
+                case PlaybackStateCompat.STATE_PLAYING:
+                case PlaybackStateCompat.STATE_PAUSED:
+                case PlaybackStateCompat.STATE_NONE:
+                    mMediaPlayer.reset();
+                    mMediaPlayer.setDataSource(this, uri);
+                    mMediaPlayer.prepare();//准备同步
+                    playbackState = PlaybackStateUtil.getMediaPlaybackState(PlaybackStateCompat.STATE_CONNECTING);
+                    new PlaybackStateCompat.Builder()
+                            .setState(PlaybackStateCompat.STATE_CONNECTING,0,1.0f)
+                            .build();
+                    mMediaSession.setPlaybackState(playbackState);
+                    //我们可以保存当前播放音乐的信息，以便客户端刷新UI
+                    mMediaSession.setMetadata(new MediaMetadataCompat.Builder()
+                            .putString(MediaMetadataCompat.METADATA_KEY_TITLE,extras.getString("title"))    //  ?? unfinished
+                            .build()
+                    );
+                    break;
+            }
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+
+    public void playMedia() {
+        Log.d(TAG, "playMedia() is called.");
+        if( !successfullyRetrievedAudioFocus() ) {
+            return;
+        }
+
+        PlaybackStateCompat playbackState = mMediaSession.getController().getPlaybackState();
+        int state = playbackState.getState();
+        if(state == PlaybackStateCompat.STATE_STOPPED){
+            Log.d(TAG, "playMedia() --> playbackState is PlaybackStateCompat.STATE_STOPPED");
+            // mMediaPlayer.reset();
+            // mMediaPlayer.seekTo(0);
+            mMediaPlayer.start();
+        } else if (state != PlaybackState.STATE_PLAYING) {
+            mMediaPlayer.start();
+        }
+        playbackState = PlaybackStateUtil.getMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
+        mMediaSession.setPlaybackState(playbackState);
+        showPlayingNotification();
+    }
+
+    public void pauseMedia() {
+        Log.d(TAG, "pauseMedia() is called.");
+        PlaybackStateCompat playbackState = mMediaSession.getController().getPlaybackState();
+        // if( mMediaPlayer.isPlaying() ) {
+        if(playbackState.getState() == PlaybackStateCompat.STATE_PLAYING){
+            mMediaPlayer.pause();
+            playbackState = PlaybackStateUtil.getMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
+            mMediaSession.setPlaybackState(playbackState);
+            showPausedNotification();
+        }
+    }
+
+    public void stopMedia() {
+        Log.d(TAG, "stopMedia() is called.");
+        PlaybackStateCompat playbackState = mMediaSession.getController().getPlaybackState();
+        if(playbackState.getState() != PlaybackStateCompat.STATE_STOPPED){
+            mMediaPlayer.pause();
+            mMediaPlayer.seekTo(0);
+            playbackState = PlaybackStateUtil.getMediaPlaybackState(PlaybackStateCompat.STATE_STOPPED);
+            mMediaSession.setPlaybackState(playbackState);
+            showStoppedNotification();
+        }
+    }
+
     public void initMediaSessionMetadata() {
         Log.d(TAG, "initMediaSessionMetadata() is called.");
         MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
@@ -226,7 +336,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
         mMediaSession.setMetadata(metadataBuilder.build());
     }
 
-    public void showPlayingNotification() {
+    public synchronized void showPlayingNotification() {
         Log.d(TAG, "showPlayingNotification() is called.");
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mMediaSession);
         if( builder == null ) {
@@ -240,7 +350,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
         NotificationManagerCompat.from(this).notify(1, builder.build());
     }
 
-    public void showPausedNotification() {
+    public synchronized void showPausedNotification() {
         Log.d(TAG, "showPausedNotification() is called.");
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mMediaSession);
         if( builder == null ) {
@@ -253,7 +363,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
         NotificationManagerCompat.from(this).notify(1, builder.build());
     }
 
-    public void showStoppedNotification() {
+    public synchronized void showStoppedNotification() {
         Log.d(TAG, "showStoppedNotification() is called.");
         NotificationCompat.Builder builder = MediaStyleHelper.from(this, mMediaSession);
         if( builder == null ) {
@@ -266,12 +376,19 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat implements A
         NotificationManagerCompat.from(this).notify(1, builder.build());
     }
 
-    public boolean successfullyRetrievedAudioFocus() {
+    public synchronized boolean successfullyRetrievedAudioFocus() {
         Log.d(TAG, "successfullyRetrievedAudioFocus() is called.");
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
         int result = audioManager.requestAudioFocus(this,
                 AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+
+        Log.d(TAG, "result = " + result);
+        if (result == AudioManager.AUDIOFOCUS_GAIN) {
+            Log.d(TAG, "AudioFocus is AudioManager.AUDIOFOCUS_GAIN");
+        } else {
+            Log.d(TAG, "AudioFocus is not AudioManager.AUDIOFOCUS_GAIN");
+        }
 
         return result == AudioManager.AUDIOFOCUS_GAIN;
     }

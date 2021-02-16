@@ -22,6 +22,7 @@ import android.view.MenuItem;
 import android.support.v4.media.MediaBrowserCompat;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.smile.mediaplayerapp.utilities.ContentUriAccessUtil;
 
@@ -41,7 +42,9 @@ public class MainActivity extends AppCompatActivity {
     private MediaControllerCompat.TransportControls mTransportControls;
     private MediaMetadataCompat mMetadata;
 
-    private int mCurrentState;
+    private ComponentName mComponentName;
+
+    // private int mCurrentState;
 
     private final MediaBrowserCompat.ConnectionCallback mMediaBrowserConnectionCallbacks =
             new MediaBrowserCompat.ConnectionCallback() {
@@ -106,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
                 getIntent().getExtras()
         );
 
-        mCurrentState = PlaybackStateCompat.STATE_NONE;
+        // mCurrentState = PlaybackStateCompat.STATE_NONE;
 
         mMediaBrowser.connect();
     }
@@ -135,12 +138,14 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.play_menu:
                 /*
+                // test code
                 if (!mMediaBrowser.isConnected()) {
                     // not connected
                     Log.d(TAG, "Calling mMediaBrowser.connect() ....");
                     mMediaBrowser.connect();
                 }
                 */
+                mComponentName = new ComponentName(getPackageName(), "MediaPlaybackService");
                 if (mMediaBrowser.isConnected()) {
                     playMedia();
                 }
@@ -150,8 +155,20 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.stop_menu:
                 stopMedia();
+                // test code
                 // Log.d(TAG, "Calling mMediaBrowser.disconnect() ....");
                 // mMediaBrowser.disconnect();
+                if (mComponentName != null) {
+                    String packageName = mComponentName.getPackageName();
+                    String className = mComponentName.getClassName();
+                    Log.d(TAG, "Package name = " + packageName);
+                    Toast.makeText(this, "Package name = " + packageName, Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "Class name = " + className);
+                    Toast.makeText(this, "Class name = " + className, Toast.LENGTH_SHORT).show();
+                } else {
+                    Log.d(TAG, "mComponentName = null");
+                    Toast.makeText(this, "mComponentName = null", Toast.LENGTH_SHORT).show();
+                }
                 break;
             default:
         }
@@ -276,11 +293,11 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "MediaPlaybackService is not connected.");
             return;
         }
-        mCurrentState = mMediaController.getPlaybackState().getState();
-        Log.d(TAG, "mCurrentState = " + mCurrentState);
-        if (mCurrentState != PlaybackStateCompat.STATE_PLAYING) {
+        // mCurrentState = mMediaController.getPlaybackState().getState();
+        // Log.d(TAG, "mCurrentState = " + mCurrentState);
+        // if (mCurrentState != PlaybackStateCompat.STATE_PLAYING) {
             mTransportControls.play();
-        }
+        // }
     }
     private void pauseMedia() {
         Log.d(TAG, "pauseMedia() is called.");
@@ -288,11 +305,11 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "MediaPlaybackService is not connected.");
             return;
         }
-        mCurrentState = mMediaController.getPlaybackState().getState();
-        Log.d(TAG, "mCurrentState = " + mCurrentState);
-        if (mCurrentState != PlaybackStateCompat.STATE_PAUSED){
+        // mCurrentState = mMediaController.getPlaybackState().getState();
+        // Log.d(TAG, "mCurrentState = " + mCurrentState);
+        // if (mCurrentState != PlaybackStateCompat.STATE_PAUSED){
             mTransportControls.pause();
-        }
+        // }
     }
 
     private void stopMedia() {
@@ -301,11 +318,13 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "MediaPlaybackService is not connected.");
             return;
         }
-        mCurrentState = mMediaController.getPlaybackState().getState();
-        Log.d(TAG, "mCurrentState = " + mCurrentState);
-        if (mCurrentState != PlaybackStateCompat.STATE_STOPPED) {
+        // mCurrentState = mMediaController.getPlaybackState().getState();
+        // Log.d(TAG, "mCurrentState = " + mCurrentState);
+        // if (mCurrentState != PlaybackStateCompat.STATE_STOPPED) {
             mTransportControls.stop();
-        }
+        // }
+        // re-create metadata
+        // mTransportControls.prepareFromMediaId(String.valueOf(R.raw.warner_tautz_off_broadway), null);
     }
 
     public void setPlayMenuItem(boolean visible) {
