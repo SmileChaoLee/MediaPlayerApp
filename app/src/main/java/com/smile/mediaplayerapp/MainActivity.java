@@ -145,7 +145,7 @@ public class MainActivity extends AppCompatActivity {
                     mMediaBrowser.connect();
                 }
                 */
-                mComponentName = new ComponentName(getPackageName(), "MediaPlaybackService");
+                // mComponentName = new ComponentName(getPackageName(), "MediaPlaybackService");
                 if (mMediaBrowser.isConnected()) {
                     playMedia();
                 }
@@ -158,6 +158,7 @@ public class MainActivity extends AppCompatActivity {
                 // test code
                 // Log.d(TAG, "Calling mMediaBrowser.disconnect() ....");
                 // mMediaBrowser.disconnect();
+                /*
                 if (mComponentName != null) {
                     String packageName = mComponentName.getPackageName();
                     String className = mComponentName.getClassName();
@@ -169,6 +170,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d(TAG, "mComponentName = null");
                     Toast.makeText(this, "mComponentName = null", Toast.LENGTH_SHORT).show();
                 }
+                */
                 break;
             default:
         }
