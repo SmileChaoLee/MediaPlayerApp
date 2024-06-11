@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -13,16 +14,12 @@ import android.os.Bundle;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
-import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 
 import android.support.v4.media.MediaBrowserCompat;
-import android.view.View;
-import android.widget.Button;
-import android.widget.Toast;
 
 import com.smile.mediaplayerapp.utilities.ContentUriAccessUtil;
 
@@ -41,8 +38,6 @@ public class MainActivity extends AppCompatActivity {
     private MediaControllerCallback mMediaControllerCallback;
     private MediaControllerCompat.TransportControls mTransportControls;
     private MediaMetadataCompat mMetadata;
-
-    private ComponentName mComponentName;
 
     // private int mCurrentState;
 
@@ -134,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "mMediaBrowser.isConnected()= " + mMediaBrowser.isConnected());
         switch (id) {
             case R.id.open_menu:
-                selectFileToOpen(this);
+                selectFileToOpen();
                 break;
             case R.id.play_menu:
                 /*
@@ -218,7 +213,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void selectFileToOpen(Context context) {
+    private void selectFileToOpen() {
         // ContentUriAccessUtil.selectFileToOpen(this, SELECT_FILES, false);   // not single file
         Intent intent;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -233,6 +228,7 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, SELECT_FILES);   // might be deprecated
     }
 
+    @SuppressLint("WrongConstant")
     private ArrayList<Uri> getUrisList(Context context, Intent data) {
         ArrayList<Uri> uriArrayList = new ArrayList<>();
         // get persist permission for uris
